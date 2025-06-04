@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Instant Weather V2</title>
+    <link rel="stylesheet" href="style.css" />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons" />
+    <script defer src="./js/main.js"></script>
+  </head>
+  <body>
+    <div class="hero" style="background-image: url('cc737192-1c8c-470c-bb5d-4f31b9b7a01a.webp');">
+      <div class="overlay">
+        <header>
+          <div class="logo">INSTANT<span>WEATHER</span> <small>V2</small></div>
+          <div class="header-controls">
+            <button id="darkModeToggle" class="dark-mode-btn" aria-label="Basculer le mode sombre">
+              <span class="material-icons">dark_mode</span>
+            </button>
+            <a href="index.html" class="home-link">
+              <div class="home-button">
+                <svg viewBox="0 0 64 64">
+                  <path d="M32 12l22 18h-6v18h-12V36h-8v12H16V30h-6z"/>
+                </svg>
+              </div>
+            </a>
+          </div>
+        </header>
+
+        <main>
+          <section id="locationForm">
+            <form id="postalSearch" action="#">
+              <div class="form-group">
+                <label for="postal-input">Code postal</label>
+                <input type="text" id="postal-input" placeholder="Ex: 75001" />
+              </div>
+              
+              <div class="form-group">
+                <label for="cityDropdown" class="sr-only">Choisissez votre ville</label>
+                <select id="cityDropdown"></select>
+              </div>
+
+              <!-- Sélecteur de nombre de jours -->
+              <div class="form-group">
+                <label for="days-selector">Nombre de jours de prévisions</label>
+                <div class="days-selector" id="days-selector" role="radiogroup" aria-labelledby="days-label">
+                  <button type="button" class="day-btn active" data-days="1" aria-pressed="true">1</button>
+                  <button type="button" class="day-btn" data-days="2" aria-pressed="false">2</button>
+                  <button type="button" class="day-btn" data-days="3" aria-pressed="false">3</button>
+                  <button type="button" class="day-btn" data-days="4" aria-pressed="false">4</button>
+                  <button type="button" class="day-btn" data-days="5" aria-pressed="false">5</button>
+                  <button type="button" class="day-btn" data-days="6" aria-pressed="false">6</button>
+                  <button type="button" class="day-btn" data-days="7" aria-pressed="false">7</button>
+                </div>
+              </div>
+
+              <!-- Options d'informations supplémentaires -->
+              <div class="form-group">
+                <fieldset>
+                  <legend>Informations supplémentaires</legend>
+                  <div class="checkbox-group">
+                    <label class="checkbox-label">
+                      <input type="checkbox" id="show-coords" />
+                      <span class="checkmark"></span>
+                      Coordonnées géographiques
+                    </label>
+                    <label class="checkbox-label">
+                      <input type="checkbox" id="show-rain" />
+                      <span class="checkmark"></span>
+                      Cumul de pluie (mm)
+                    </label>
+                    <label class="checkbox-label">
+                      <input type="checkbox" id="show-wind" />
+                      <span class="checkmark"></span>
+                      Vent moyen (km/h)
+                    </label>
+                    <label class="checkbox-label">
+                      <input type="checkbox" id="show-wind-dir" />
+                      <span class="checkmark"></span>
+                      Direction du vent (°)
+                    </label>
+                  </div>
+                </fieldset>
+              </div>
+            </form>
+            <button id="submitBtn">Obtenir les prévisions</button>
+          </section>
+          <section id="weatherResult" style="display: none;"></section>
+        </main>
+      </div>
+    </div>
+  </body>
+</html>
