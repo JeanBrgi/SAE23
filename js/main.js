@@ -239,6 +239,18 @@ function createWeatherCard(dayData, dayIndex) {
   dayTitle.textContent = getDayLabel(dayIndex);
   card.appendChild(dayTitle);
 
+  // Date exacte
+  const dateDisplay = document.createElement("div");
+  dateDisplay.style.cssText = `
+    font-size: 0.9rem;
+    color: var(--secondary-color);
+    margin-bottom: 1rem;
+    font-weight: 500;
+    opacity: 0.8;
+  `;
+  dateDisplay.textContent = getExactDate(dayIndex);
+  card.appendChild(dateDisplay);
+
   // Conteneur des informations
   const infoContainer = document.createElement("div");
   infoContainer.className = "weather-info";
@@ -281,6 +293,7 @@ function createWeatherCard(dayData, dayIndex) {
   return card;
 }
 
+
 // Fonctions utilitaires
 function getDayLabel(dayIndex) {
   const labels = [
@@ -293,6 +306,21 @@ function getDayLabel(dayIndex) {
     "Dans 6 jours"
   ];
   return labels[dayIndex] || `Dans ${dayIndex} jours`;
+}
+
+function getExactDate(dayIndex) {
+  const today = new Date();
+  const targetDate = new Date(today);
+  targetDate.setDate(today.getDate() + dayIndex);
+  
+  const options = { 
+    weekday: 'long', 
+    year: 'numeric', 
+    month: 'long', 
+    day: 'numeric' 
+  };
+  
+  return targetDate.toLocaleDateString('fr-FR', options);
 }
 
 function formatHours(hours) {
