@@ -1,6 +1,7 @@
 // Configuration et éléments DOM
 const API_TOKEN = "30d71a74ad1c665d279168dca98378581270be4587da3ab13c51ffde8de4cbae";
 const MAPBOX_TOKEN = "pk.eyJ1IjoiamVhbmJyZ2kiLCJhIjoiY21iajY4ZXl1MGNseDJrcW5hZXp2M25lZyJ9.dpIjsW_tSsd9Spy7OzOeFg";
+const OPENWEATHER_API_KEY = "1866e365d13f50c5a36c079b8219f505";
 const postalInput = document.getElementById("postal-input");
 const cityDropdown = document.getElementById("cityDropdown");
 const submitBtn = document.getElementById("submitBtn");
@@ -236,6 +237,8 @@ function renderCoordinatesCard(cityData, weatherData, container) {
       <button class="radar-btn" data-layer="precipitation">🌧️ Précipitations</button>
       <button class="radar-btn" data-layer="clouds">☁️ Nuages</button>
       <button class="radar-btn" data-layer="temperature">🌡️ Température</button>
+      <button class="radar-btn" data-layer="pressure">🌪️ Pression</button>
+      <button class="radar-btn" data-layer="wind">💨 Vent</button>
     </div>
     <div id="weather-map" class="weather-map">
       <div class="map-loading">
@@ -243,7 +246,7 @@ function renderCoordinatesCard(cityData, weatherData, container) {
       </div>
     </div>
     <div class="map-info">
-      📍 Naviguez dans la carte • 🌧️ Basculez entre les couches météo • 🔄 Données en temps réel
+      📍 Naviguez dans la carte • 🌧️ Précipitations • ☁️ Nuages • 🌡️ Température • 🌪️ Pression • 💨 Vent • 🔄 Données temps réel
     </div>
   `;
   
@@ -304,9 +307,16 @@ function switchWeatherLayer(layerType) {
     case 'temperature':
       addTemperatureLayer();
       break;
+    case 'pressure':
+      addPressureLayer();
+      break;
+    case 'wind':
+      addWindLayer();
+      break;
     case 'none':
     default:
       // Juste la carte de base, rien à ajouter
+      showLayerMessage('🗺️ Vue carte normale');
       break;
   }
 }
@@ -315,7 +325,13 @@ function switchWeatherLayer(layerType) {
 function removeWeatherLayers() {
   if (!weatherMap) return;
   
-  const layersToRemove = ['precipitation-layer', 'clouds-layer', 'temperature-layer'];
+  const layersToRemove = [
+    'precipitation-layer', 
+    'clouds-layer', 
+    'temperature-layer',
+    'pressure-layer',
+    'wind-layer'
+  ];
   
   layersToRemove.forEach(layerId => {
     if (weatherMap.getLayer(layerId)) {
@@ -372,17 +388,66 @@ function addPrecipitationLayer() {
 function addCloudsLayer() {
   if (!weatherMap) return;
   
-  const cloudsUrl = 'https://tile.openweathermap.org/map/clouds_new/{z}/{x}/{y}.png?appid=your_openweather_api_key';
+  const cloudsUrl = `https://tile.openweathermap.org/map/clouds_new/{z}/{x}/{y}.png?appid=${OPENWEATHER_API_KEY}`;
   
-  // Note: Nécessite une clé API OpenWeatherMap
-  showLayerMessage('☁️ Couche nuages disponible avec clé API OpenWeatherMap');
+  try {
+    weatherMap.addSource('clouds-layer-source', {
+      type: 'raster',
+      tiles: [cloudsUrl],
+      tileSize: 256,
+      attribution: '© OpenWeatherMap'
+    });
+    
+    weatherMap.addLayer({
+      id: 'clouds-layer',
+      type: 'raster',
+      source: 'clouds-layer-source',
+      paint: {
+        'raster-opacity': 0.6
+      }
+    });
+    
+    // Animation d'apparition
+    animateLayerOpacity('clouds-layer', 0, 0.6);
+    showLayerMessage('☁️ Couche nuages activée');
+    
+  } catch (error) {
+    console.error('Erreur couche nuages:', error);
+    showLayerMessage('☁️ Erreur lors du chargement des nuages');
+  }
 }
 
 // Ajouter la couche de température
 function addTemperatureLayer() {
   if (!weatherMap) return;
   
-  showLayerMessage('🌡️ Couche température disponible avec clé API OpenWeatherMap');
+  const temperatureUrl = `https://tile.openweathermap.org/map/temp_new/{z}/{x}/{y}.png?appid=${OPENWEATHER_API_KEY}`;
+  
+  try {
+    weatherMap.addSource('temperature-layer-source', {
+      type: 'raster',
+      tiles: [temperatureUrl],
+      tileSize: 256,
+      attribution: '© OpenWeatherMap'
+    });
+    
+    weatherMap.addLayer({
+      id: 'temperature-layer',
+      type: 'raster',
+      source: 'temperature-layer-source',
+      paint: {
+        'raster-opacity': 0.7
+      }
+    });
+    
+    // Animation d'apparition
+    animateLayerOpacity('temperature-layer', 0, 0.7);
+    showLayerMessage('🌡️ Couche température activée');
+    
+  } catch (error) {
+    console.error('Erreur couche température:', error);
+    showLayerMessage('🌡️ Erreur lors du chargement des températures');
+  }
 }
 
 // Animer l'opacité d'une couche
@@ -857,8 +922,71 @@ function triggerCardAnimations(card) {
   });
 }
 
-// Animation pour mettre à jour les valeurs météo
-function animateValueUpdate(element, newValue) {
+// Ajouter la couche de pression
+function addPressureLayer() {
+  if (!weatherMap) return;
+  
+  const pressureUrl = `https://tile.openweathermap.org/map/pressure_new/{z}/{x}/{y}.png?appid=${OPENWEATHER_API_KEY}`;
+  
+  try {
+    weatherMap.addSource('pressure-layer-source', {
+      type: 'raster',
+      tiles: [pressureUrl],
+      tileSize: 256,
+      attribution: '© OpenWeatherMap'
+    });
+    
+    weatherMap.addLayer({
+      id: 'pressure-layer',
+      type: 'raster',
+      source: 'pressure-layer-source',
+      paint: {
+        'raster-opacity': 0.5
+      }
+    });
+    
+    // Animation d'apparition
+    animateLayerOpacity('pressure-layer', 0, 0.5);
+    showLayerMessage('🌪️ Couche pression atmosphérique activée');
+    
+  } catch (error) {
+    console.error('Erreur couche pression:', error);
+    showLayerMessage('🌪️ Erreur lors du chargement de la pression');
+  }
+}
+
+// Ajouter la couche de vent
+function addWindLayer() {
+  if (!weatherMap) return;
+  
+  const windUrl = `https://tile.openweathermap.org/map/wind_new/{z}/{x}/{y}.png?appid=${OPENWEATHER_API_KEY}`;
+  
+  try {
+    weatherMap.addSource('wind-layer-source', {
+      type: 'raster',
+      tiles: [windUrl],
+      tileSize: 256,
+      attribution: '© OpenWeatherMap'
+    });
+    
+    weatherMap.addLayer({
+      id: 'wind-layer',
+      type: 'raster',
+      source: 'wind-layer-source',
+      paint: {
+        'raster-opacity': 0.6
+      }
+    });
+    
+    // Animation d'apparition
+    animateLayerOpacity('wind-layer', 0, 0.6);
+    showLayerMessages('💨 Couche vent activée - Flèches = direction et intensité');
+    
+  } catch (error) {
+    console.error('Erreur couche vent:', error);
+    showLayerMessage('💨 Erreur lors du chargement du vent');
+  }
+}
   if (!element) return;
   
   element.classList.add('updating');
@@ -871,7 +999,7 @@ function animateValueUpdate(element, newValue) {
     element.style.color = '';
     element.classList.remove('updating');
   }, 400);
-}
+
 
 // Animation d'apparition en cascade pour toutes les cartes
 function animateWeatherCards() {
@@ -897,6 +1025,7 @@ function animateWeatherCards() {
     }, index * 150);
   });
 }
+
 
 
 
