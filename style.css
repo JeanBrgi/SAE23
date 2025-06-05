@@ -348,14 +348,31 @@ legend {
   color: white;
   text-align: center;
   padding: 2rem;
-  border-radius: var(--border-radius);
+  border-radius: 20px;
   margin-bottom: 2rem;
-  box-shadow: 0 10px 30px var(--shadow-green);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  backdrop-filter: blur(20px);
+  transition: var(--transition);
+}
+
+[data-theme="dark"] .coordinates-card {
+  background: linear-gradient(135deg, #1a2e1a, #2d5a2d);
+  border: 1px solid rgba(101, 163, 13, 0.3);
+}
+
+.coordinates-card:hover {
+  transform: translateY(-2px);
+  border-color: rgba(255, 255, 255, 0.4);
+}
+
+[data-theme="dark"] .coordinates-card:hover {
+  border-color: rgba(101, 163, 13, 0.5);
 }
 
 .coordinates-card h3 {
   color: white;
   margin-bottom: 1rem;
+  text-shadow: none;
 }
 
 .coord-display {
@@ -368,35 +385,187 @@ legend {
 .coord-item {
   background: rgba(255, 255, 255, 0.2);
   padding: 0.8rem;
-  border-radius: 10px;
+  border-radius: 15px;
   backdrop-filter: blur(10px);
+  transition: var(--transition);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+[data-theme="dark"] .coord-item {
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(101, 163, 13, 0.2);
+}
+
+.coord-item:hover {
+  transform: scale(1.05);
+  background: rgba(255, 255, 255, 0.3);
+}
+
+[data-theme="dark"] .coord-item:hover {
+  background: rgba(0, 0, 0, 0.4);
 }
 
 .coord-label {
   font-size: 0.8rem;
   opacity: 0.9;
   margin-bottom: 0.3rem;
+  text-shadow: none;
 }
 
 .coord-value {
   font-size: 1.1rem;
   font-weight: bold;
+  text-shadow: none;
 }
 
 /* Carte Mapbox */
 .weather-map {
   width: 100%;
   height: 300px;
-  border-radius: 10px;
+  border-radius: 15px;
   margin-top: 1rem;
-  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+  border: 2px solid rgba(255, 255, 255, 0.2);
   overflow: hidden;
+  transition: var(--transition);
+}
+
+[data-theme="dark"] .weather-map {
+  border: 2px solid rgba(101, 163, 13, 0.3);
+}
+
+.weather-map:hover {
+  border-color: rgba(255, 255, 255, 0.4);
+}
+
+[data-theme="dark"] .weather-map:hover {
+  border-color: rgba(101, 163, 13, 0.5);
 }
 
 .map-info {
   margin-top: 1rem;
   font-size: 0.85rem;
   opacity: 0.9;
+  text-shadow: none;
+}
+
+/* Contrôles radar */
+.radar-controls {
+  display: flex;
+  justify-content: center;
+  gap: 1rem;
+  margin: 1rem 0;
+  flex-wrap: wrap;
+}
+
+.radar-btn {
+  background: rgba(255, 255, 255, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  color: white;
+  padding: 0.5rem 1rem;
+  border-radius: 20px;
+  cursor: pointer;
+  transition: var(--transition);
+  font-size: 0.85rem;
+  backdrop-filter: blur(10px);
+}
+
+.radar-btn:hover {
+  background: rgba(255, 255, 255, 0.3);
+  transform: translateY(-1px);
+}
+
+.radar-btn.active {
+  background: rgba(255, 255, 255, 0.4);
+  border-color: rgba(255, 255, 255, 0.6);
+}
+
+[data-theme="dark"] .radar-btn {
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(101, 163, 13, 0.3);
+}
+
+[data-theme="dark"] .radar-btn:hover {
+  background: rgba(0, 0, 0, 0.4);
+}
+
+[data-theme="dark"] .radar-btn.active {
+  background: rgba(101, 163, 13, 0.3);
+  border-color: rgba(101, 163, 13, 0.5);
+}
+
+/* Animations pour les données météo */
+@keyframes slideInUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes pulseGlow {
+  0%, 100% {
+    box-shadow: 0 0 5px rgba(34, 197, 94, 0.5);
+  }
+  50% {
+    box-shadow: 0 0 20px rgba(34, 197, 94, 0.8);
+  }
+}
+
+.weather-card {
+  background: rgba(34, 197, 94, 0.1);
+  padding: 1.5rem;
+  border-radius: 20px;
+  border: 2px solid rgba(34, 197, 94, 0.2);
+  transition: var(--transition);
+  animation: slideInUp 0.6s ease-out;
+}
+
+[data-theme="dark"] .weather-card {
+  background: rgba(25, 35, 25, 0.8);
+  border: 2px solid rgba(52, 211, 153, 0.3);
+}
+
+.weather-card:hover {
+  transform: translateY(-5px);
+  animation: pulseGlow 2s infinite;
+}
+
+/* Animation pour les valeurs numériques */
+.animated-value {
+  transition: all 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.animated-value.updating {
+  transform: scale(1.1);
+  color: var(--primary-color);
+}
+
+/* Loading states */
+.map-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 300px;
+  background: linear-gradient(45deg, rgba(34, 197, 94, 0.1), rgba(16, 185, 129, 0.1));
+  border-radius: 15px;
+  border: 2px dashed rgba(34, 197, 94, 0.3);
+}
+
+.loading-spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid rgba(34, 197, 94, 0.3);
+  border-top: 3px solid var(--primary-color);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
 }
 
 .reloadButton {

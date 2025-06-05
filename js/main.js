@@ -1,6 +1,6 @@
 // Configuration et éléments DOM
 const API_TOKEN = "30d71a74ad1c665d279168dca98378581270be4587da3ab13c51ffde8de4cbae";
-const MAPBOX_TOKEN = "";
+const MAPBOX_TOKEN = "YOUR_MAPBOX_TOKEN_HERE"; // Remplacez par votre token Mapbox
 const postalInput = document.getElementById("postal-input");
 const cityDropdown = document.getElementById("cityDropdown");
 const submitBtn = document.getElementById("submitBtn");
@@ -194,6 +194,11 @@ function renderWeatherResults(weatherData, cityData) {
     cardsContainer.appendChild(card);
   });
 
+  // Déclencher les animations en cascade après un délai
+  setTimeout(() => {
+    animateWeatherCards();
+  }, 200);
+
   // Bouton de nouvelle recherche
   const retryBtn = document.createElement("button");
   retryBtn.textContent = "Nouvelle recherche";
@@ -219,25 +224,225 @@ function renderCoordinatesCard(cityData, weatherData, container) {
     <div class="coord-display">
       <div class="coord-item">
         <div class="coord-label">Latitude</div>
-        <div class="coord-value">${cityData.lat.toFixed(4)}°</div>
+        <div class="coord-value animated-value">${cityData.lat.toFixed(4)}°</div>
       </div>
       <div class="coord-item">
         <div class="coord-label">Longitude</div>
-        <div class="coord-value">${cityData.lon.toFixed(4)}°</div>
+        <div class="coord-value animated-value">${cityData.lon.toFixed(4)}°</div>
       </div>
     </div>
-    <div id="weather-map" class="weather-map"></div>
+    <div class="radar-controls">
+      <button class="radar-btn active" data-layer="none">🗺️ Carte</button>
+      <button class="radar-btn" data-layer="precipitation">🌧️ Précipitations</button>
+      <button class="radar-btn" data-layer="clouds">☁️ Nuages</button>
+      <button class="radar-btn" data-layer="temperature">🌡️ Température</button>
+    </div>
+    <div id="weather-map" class="weather-map">
+      <div class="map-loading">
+        <div class="loading-spinner"></div>
+      </div>
+    </div>
     <div class="map-info">
-      📍 Cliquez et naviguez dans la carte • 🌡️ Marqueur avec données météo
+      📍 Naviguez dans la carte • 🌧️ Basculez entre les couches météo • 🔄 Données en temps réel
     </div>
   `;
   
   container.appendChild(coordCard);
   
+  // Animer l'apparition des coordonnées
+  setTimeout(() => {
+    const values = coordCard.querySelectorAll('.animated-value');
+    values.forEach((value, index) => {
+      setTimeout(() => {
+        value.classList.add('updating');
+        setTimeout(() => value.classList.remove('updating'), 800);
+      }, index * 200);
+    });
+  }, 300);
+  
+  // Ajouter les event listeners pour les boutons radar
+  setupRadarControls(coordCard);
+  
   // Initialiser la carte après que l'élément soit dans le DOM
   setTimeout(() => {
     initializeWeatherMap(cityData, weatherData);
-  }, 100);
+  }, 500);
+}
+
+// Configuration des contrôles radar
+function setupRadarControls(cardElement) {
+  const radarButtons = cardElement.querySelectorAll('.radar-btn');
+  
+  radarButtons.forEach(btn => {
+    btn.addEventListener('click', () => {
+      // Retirer l'état actif de tous les boutons
+      radarButtons.forEach(b => b.classList.remove('active'));
+      // Activer le bouton cliqué
+      btn.classList.add('active');
+      
+      const layer = btn.getAttribute('data-layer');
+      switchWeatherLayer(layer);
+    });
+  });
+}
+
+// Basculer entre les couches météo
+function switchWeatherLayer(layerType) {
+  if (!weatherMap) return;
+  
+  // Supprimer les couches météo existantes
+  removeWeatherLayers();
+  
+  // Ajouter la nouvelle couche selon le type
+  switch(layerType) {
+    case 'precipitation':
+      addPrecipitationLayer();
+      break;
+    case 'clouds':
+      addCloudsLayer();
+      break;
+    case 'temperature':
+      addTemperatureLayer();
+      break;
+    case 'none':
+    default:
+      // Juste la carte de base, rien à ajouter
+      break;
+  }
+}
+
+// Supprimer toutes les couches météo
+function removeWeatherLayers() {
+  if (!weatherMap) return;
+  
+  const layersToRemove = ['precipitation-layer', 'clouds-layer', 'temperature-layer'];
+  
+  layersToRemove.forEach(layerId => {
+    if (weatherMap.getLayer(layerId)) {
+      weatherMap.removeLayer(layerId);
+    }
+    if (weatherMap.getSource(layerId + '-source')) {
+      weatherMap.removeSource(layerId + '-source');
+    }
+  });
+}
+
+// Ajouter la couche de précipitations (RainViewer API)
+function addPrecipitationLayer() {
+  if (!weatherMap) return;
+  
+  // API RainViewer pour les données radar gratuites
+  const precipitationUrl = 'https://tilecache.rainviewer.com/v2/radar/{time}/256/{z}/{x}/{y}/6/1_1.png';
+  
+  // Obtenir l'heure actuelle pour les données radar
+  fetch('https://api.rainviewer.com/public/weather-maps.json')
+    .then(response => response.json())
+    .then(data => {
+      if (data.radar && data.radar.past && data.radar.past.length > 0) {
+        const latestTime = data.radar.past[data.radar.past.length - 1].time;
+        const urlWithTime = precipitationUrl.replace('{time}', latestTime);
+        
+        weatherMap.addSource('precipitation-layer-source', {
+          type: 'raster',
+          tiles: [urlWithTime],
+          tileSize: 256,
+          attribution: '© RainViewer'
+        });
+        
+        weatherMap.addLayer({
+          id: 'precipitation-layer',
+          type: 'raster',
+          source: 'precipitation-layer-source',
+          paint: {
+            'raster-opacity': 0.7
+          }
+        });
+        
+        // Animation d'apparition
+        animateLayerOpacity('precipitation-layer', 0, 0.7);
+      }
+    })
+    .catch(error => {
+      console.log('Données radar non disponibles:', error);
+      showLayerMessage('🌧️ Données radar temporairement indisponibles');
+    });
+}
+
+// Ajouter la couche de nuages (OpenWeatherMap)
+function addCloudsLayer() {
+  if (!weatherMap) return;
+  
+  const cloudsUrl = 'https://tile.openweathermap.org/map/clouds_new/{z}/{x}/{y}.png?appid=your_openweather_api_key';
+  
+  // Note: Nécessite une clé API OpenWeatherMap
+  showLayerMessage('☁️ Couche nuages disponible avec clé API OpenWeatherMap');
+}
+
+// Ajouter la couche de température
+function addTemperatureLayer() {
+  if (!weatherMap) return;
+  
+  showLayerMessage('🌡️ Couche température disponible avec clé API OpenWeatherMap');
+}
+
+// Animer l'opacité d'une couche
+function animateLayerOpacity(layerId, fromOpacity, toOpacity, duration = 1000) {
+  if (!weatherMap || !weatherMap.getLayer(layerId)) return;
+  
+  const startTime = performance.now();
+  
+  function animate(currentTime) {
+    const elapsed = currentTime - startTime;
+    const progress = Math.min(elapsed / duration, 1);
+    
+    const currentOpacity = fromOpacity + (toOpacity - fromOpacity) * progress;
+    
+    weatherMap.setPaintProperty(layerId, 'raster-opacity', currentOpacity);
+    
+    if (progress < 1) {
+      requestAnimationFrame(animate);
+    }
+  }
+  
+  requestAnimationFrame(animate);
+}
+
+// Afficher un message sur la carte
+function showLayerMessage(message) {
+  const mapElement = document.getElementById('weather-map');
+  
+  // Créer une notification temporaire
+  const notification = document.createElement('div');
+  notification.style.cssText = `
+    position: absolute;
+    top: 10px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(34, 197, 94, 0.9);
+    color: white;
+    padding: 0.5rem 1rem;
+    border-radius: 20px;
+    font-size: 0.85rem;
+    z-index: 1000;
+    animation: slideInUp 0.3s ease-out;
+    backdrop-filter: blur(10px);
+  `;
+  notification.textContent = message;
+  
+  mapElement.style.position = 'relative';
+  mapElement.appendChild(notification);
+  
+  // Supprimer après 3 secondes
+  setTimeout(() => {
+    if (notification.parentNode) {
+      notification.style.animation = 'slideInUp 0.3s ease-out reverse';
+      setTimeout(() => {
+        if (notification.parentNode) {
+          notification.parentNode.removeChild(notification);
+        }
+      }, 300);
+    }
+  }, 3000);
 }
 
 // Initialisation de la carte Mapbox
@@ -245,42 +450,68 @@ function initializeWeatherMap(cityData, weatherData) {
   // Vérifier si Mapbox est disponible
   if (typeof mapboxgl === 'undefined') {
     console.error("Mapbox GL JS n'est pas chargé");
+    showFallbackMap(cityData, weatherData);
     return;
   }
 
   // Définir le token (vérifier qu'il n'est pas vide)
   if (MAPBOX_TOKEN === "YOUR_MAPBOX_TOKEN_HERE") {
-    console.warn("⚠️ Token Mapbox non configuré. Utilisez un style de base.");
-    // Utiliser OpenStreetMap comme fallback
-    initializeFallbackMap(cityData, weatherData);
+    console.warn("⚠️ Token Mapbox non configuré.");
+    showFallbackMap(cityData, weatherData);
     return;
   }
 
   mapboxgl.accessToken = MAPBOX_TOKEN;
 
-  // Créer la carte
+  // Supprimer le loading spinner
+  const mapContainer = document.getElementById('weather-map');
+  mapContainer.innerHTML = '';
+
+  // Créer la carte avec style amélioré
   weatherMap = new mapboxgl.Map({
     container: 'weather-map',
     style: 'mapbox://styles/mapbox/streets-v12',
     center: [cityData.lon, cityData.lat],
     zoom: 11,
-    projection: 'mercator'
+    projection: 'mercator',
+    attributionControl: false
   });
 
-  // Ajouter les contrôles de navigation
-  weatherMap.addControl(new mapboxgl.NavigationControl(), 'top-right');
+  // Ajouter les contrôles de navigation avec style personnalisé
+  weatherMap.addControl(new mapboxgl.NavigationControl({
+    showCompass: true,
+    showZoom: true
+  }), 'top-right');
 
-  // Ajouter un marqueur avec popup météo
+  // Ajouter un contrôle d'attribution compact
+  weatherMap.addControl(new mapboxgl.AttributionControl({
+    compact: true
+  }), 'bottom-right');
+
+  // Évènements de la carte
   weatherMap.on('load', () => {
-    addWeatherMarker(cityData, weatherData[0]); // Premier jour de prévisions
+    addWeatherMarkerWithAnimation(cityData, weatherData[0]);
     
-    // Essayer d'ajouter une couche de précipitations si possible
-    addWeatherLayers();
+    // Effet de zoom fluide à l'initialisation
+    setTimeout(() => {
+      weatherMap.flyTo({
+        center: [cityData.lon, cityData.lat],
+        zoom: 12,
+        duration: 2000,
+        essential: true
+      });
+    }, 500);
+  });
+
+  // Gestion d'erreur
+  weatherMap.on('error', (e) => {
+    console.error('Erreur carte Mapbox:', e);
+    showFallbackMap(cityData, weatherData);
   });
 }
 
-// Fallback avec OpenStreetMap si pas de token Mapbox
-function initializeFallbackMap(cityData, weatherData) {
+// Fallback amélioré avec animations
+function showFallbackMap(cityData, weatherData) {
   const mapElement = document.getElementById('weather-map');
   mapElement.innerHTML = `
     <div style="
@@ -291,113 +522,224 @@ function initializeFallbackMap(cityData, weatherData) {
       height: 100%;
       background: linear-gradient(135deg, rgba(52, 211, 153, 0.1), rgba(34, 197, 94, 0.2));
       border: 2px dashed rgba(255, 255, 255, 0.3);
-      border-radius: 10px;
+      border-radius: 15px;
       text-align: center;
       padding: 2rem;
+      animation: slideInUp 0.6s ease-out;
     ">
-      <div style="font-size: 3rem; margin-bottom: 1rem;">🗺️</div>
-      <div style="font-size: 1.1rem; font-weight: bold; margin-bottom: 0.5rem;">
+      <div style="
+        font-size: 3rem; 
+        margin-bottom: 1rem;
+        animation: pulseGlow 2s infinite;
+      ">🗺️</div>
+      <div style="
+        font-size: 1.1rem; 
+        font-weight: bold; 
+        margin-bottom: 0.5rem;
+        text-shadow: none;
+      ">
         Carte météo interactive
       </div>
-      <div style="font-size: 0.9rem; opacity: 0.8; margin-bottom: 1rem;">
-        ${cityData.name}
+      <div style="
+        font-size: 0.9rem; 
+        opacity: 0.8; 
+        margin-bottom: 1rem;
+        text-shadow: none;
+      ">
+        📍 ${cityData.name}
       </div>
-      <div style="font-size: 0.8rem; opacity: 0.7;">
-        🌡️ ${weatherData[0].tmax}°C • ☔ ${weatherData[0].probarain}%
+      <div style="
+        font-size: 0.8rem; 
+        opacity: 0.7;
+        text-shadow: none;
+        margin-bottom: 1rem;
+      ">
+        🌡️ ${weatherData[0].tmax}°C • ☔ ${weatherData[0].probarain}% • 🌤️ ${getWeatherDescription(weatherData[0].weather)}
       </div>
-      <div style="font-size: 0.7rem; opacity: 0.6; margin-top: 1rem;">
-        Configurez votre token Mapbox pour voir la carte interactive
+      <div style="
+        font-size: 0.7rem; 
+        opacity: 0.6; 
+        margin-top: 1rem;
+        text-shadow: none;
+      ">
+        📝 Configurez votre token Mapbox pour voir la carte interactive avec radar météo
       </div>
     </div>
   `;
 }
 
-// Ajouter un marqueur météo sur la carte
-function addWeatherMarker(cityData, dayWeather) {
+// Ajouter un marqueur météo avec animation
+function addWeatherMarkerWithAnimation(cityData, dayWeather) {
   if (!weatherMap) return;
 
-  // Créer le contenu du popup
+  // Créer le contenu du popup avec style amélioré
   const popupContent = `
-    <div style="padding: 0.5rem; text-align: center;">
-      <h4 style="margin: 0 0 0.5rem 0; color: #059669;">${cityData.name}</h4>
-      <div style="font-size: 0.9rem; margin-bottom: 0.3rem;">
-        🌡️ ${dayWeather.tmin}°C - ${dayWeather.tmax}°C
+    <div style="
+      padding: 1rem; 
+      text-align: center; 
+      background: linear-gradient(135deg, #f8fafc, #e2e8f0);
+      border-radius: 10px;
+      min-width: 200px;
+    ">
+      <h4 style="
+        margin: 0 0 1rem 0; 
+        color: #059669;
+        font-size: 1.1rem;
+        border-bottom: 2px solid #059669;
+        padding-bottom: 0.5rem;
+      ">${cityData.name}</h4>
+      
+      <div style="
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 0.8rem;
+        margin-bottom: 1rem;
+      ">
+        <div style="
+          background: linear-gradient(135deg, #22c55e, #16a34a);
+          color: white;
+          padding: 0.5rem;
+          border-radius: 8px;
+          font-size: 0.85rem;
+        ">
+          🌡️ Min<br><strong>${dayWeather.tmin}°C</strong>
+        </div>
+        <div style="
+          background: linear-gradient(135deg, #ef4444, #dc2626);
+          color: white;
+          padding: 0.5rem;
+          border-radius: 8px;
+          font-size: 0.85rem;
+        ">
+          🌡️ Max<br><strong>${dayWeather.tmax}°C</strong>
+        </div>
       </div>
-      <div style="font-size: 0.9rem; margin-bottom: 0.3rem;">
-        ☔ ${dayWeather.probarain}% de pluie
+      
+      <div style="
+        background: linear-gradient(135deg, #3b82f6, #2563eb);
+        color: white;
+        padding: 0.5rem;
+        border-radius: 8px;
+        margin-bottom: 0.5rem;
+        font-size: 0.85rem;
+      ">
+        ☔ <strong>${dayWeather.probarain}%</strong> de pluie
       </div>
-      <div style="font-size: 0.9rem;">
-        🌤️ ${getWeatherDescription(dayWeather.weather)}
+      
+      <div style="
+        background: linear-gradient(135deg, #f59e0b, #d97706);
+        color: white;
+        padding: 0.5rem;
+        border-radius: 8px;
+        font-size: 0.85rem;
+      ">
+        🌤️ <strong>${getWeatherDescription(dayWeather.weather)}</strong>
       </div>
     </div>
   `;
 
-  // Créer le popup
+  // Créer le popup avec style personnalisé
   const popup = new mapboxgl.Popup({ 
     offset: 25,
     closeButton: true,
-    closeOnClick: false
+    closeOnClick: false,
+    className: 'weather-popup'
   }).setHTML(popupContent);
 
-  // Créer le marqueur
+  // Créer un élément de marqueur personnalisé avec animation
+  const markerElement = document.createElement('div');
+  markerElement.innerHTML = `
+    <div style="
+      width: 40px;
+      height: 40px;
+      background: linear-gradient(135deg, #22c55e, #16a34a);
+      border: 3px solid white;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.2rem;
+      box-shadow: 0 4px 12px rgba(34, 197, 94, 0.4);
+      cursor: pointer;
+      animation: pulseGlow 2s infinite;
+      transition: transform 0.3s ease;
+    " onmouseover="this.style.transform='scale(1.2)'" onmouseout="this.style.transform='scale(1)'">
+      ${getWeatherEmoji(dayWeather.weather)}
+    </div>
+  `;
+
+  // Créer le marqueur avec l'élément personnalisé
   const marker = new mapboxgl.Marker({
-    color: '#22c55e',
-    scale: 1.2
+    element: markerElement,
+    anchor: 'bottom'
   })
   .setLngLat([cityData.lon, cityData.lat])
   .setPopup(popup)
   .addTo(weatherMap);
 
-  // Ouvrir le popup automatiquement
+  // Animation d'apparition du marqueur
   setTimeout(() => {
-    popup.addTo(weatherMap);
-  }, 500);
+    markerElement.style.animation = 'slideInUp 0.8s ease-out, pulseGlow 2s infinite 0.8s';
+  }, 100);
+
+  // Ouvrir le popup automatiquement avec délai
+  setTimeout(() => {
+    marker.togglePopup();
+  }, 1500);
 }
 
-// Ajouter des couches météo (expérimental)
-function addWeatherLayers() {
-  if (!weatherMap) return;
-
-  try {
-    // Ajouter une couche de précipitations de Mapbox (si disponible)
-    weatherMap.on('load', () => {
-      // Cette couche nécessite un style spécial de Mapbox
-      // Pour l'instant, on se contente du marqueur
-      console.log("Carte météo chargée avec succès");
-    });
-  } catch (error) {
-    console.log("Couches météo avancées non disponibles:", error);
-  }
+// Obtenir l'emoji météo correspondant
+function getWeatherEmoji(weatherCode) {
+  if (weatherCode === 0) return '☀️';
+  if ([1, 2].includes(weatherCode)) return '⛅';
+  if ([3, 4, 5].includes(weatherCode)) return '☁️';
+  if ([6, 7].includes(weatherCode)) return '🌫️';
+  if ((weatherCode >= 10 && weatherCode <= 16) || (weatherCode >= 40 && weatherCode <= 48)) return '🌧️';
+  if ((weatherCode >= 20 && weatherCode <= 22) || (weatherCode >= 30 && weatherCode <= 32) || (weatherCode >= 60 && weatherCode <= 78)) return '❄️';
+  if (weatherCode >= 100 && weatherCode <= 142) return '⛈️';
+  if (weatherCode === 235) return '🧊';
+  return '🌤️';
 }
 
-// Création d'une carte météo pour un jour
+// Création d'une carte météo pour un jour avec animations
 function createWeatherCard(dayData, dayIndex) {
   const card = document.createElement("div");
   card.className = "weather-card";
   
-  // Titre du jour
+  // Délai d'animation échelonné
+  card.style.animationDelay = `${dayIndex * 0.1}s`;
+  
+  // Titre du jour avec animation
   const dayTitle = document.createElement("h3");
   dayTitle.textContent = getDayLabel(dayIndex);
+  dayTitle.style.opacity = '0';
+  dayTitle.style.transform = 'translateY(-10px)';
+  dayTitle.style.transition = 'all 0.6s ease-out';
   card.appendChild(dayTitle);
 
-  // Date exacte
+  // Date exacte avec animation
   const dateDisplay = document.createElement("div");
   dateDisplay.style.cssText = `
     font-size: 0.9rem;
     color: var(--secondary-color);
     margin-bottom: 1rem;
     font-weight: 500;
-    opacity: 0.8;
+    opacity: 0;
     text-shadow: none;
+    transform: translateY(-10px);
+    transition: all 0.6s ease-out 0.2s;
   `;
   dateDisplay.textContent = getExactDate(dayIndex);
   card.appendChild(dateDisplay);
 
-  // Conteneur des informations
+  // Conteneur des informations avec animation
   const infoContainer = document.createElement("div");
   infoContainer.className = "weather-info";
+  infoContainer.style.opacity = '0';
+  infoContainer.style.transform = 'translateY(20px)';
+  infoContainer.style.transition = 'all 0.8s ease-out 0.4s';
   
-  // Informations de base dans le nouvel ordre
+  // Informations de base dans le nouvel ordre avec animations individuelles
   const basicInfo = [
     `🌤️ Conditions : ${getWeatherDescription(dayData.weather)}`,
     `🌡️ Température max : ${dayData.tmax}°C`,
@@ -406,34 +748,156 @@ function createWeatherCard(dayData, dayIndex) {
     `☀️ Ensoleillement : ${formatHours(dayData.sun_hours)}`
   ];
 
-  basicInfo.forEach(info => {
+  basicInfo.forEach((info, index) => {
     const p = document.createElement("p");
     p.textContent = info;
+    p.className = 'animated-value';
+    p.style.opacity = '0';
+    p.style.transform = 'translateX(-20px)';
+    p.style.transition = `all 0.5s ease-out ${0.6 + index * 0.1}s`;
     infoContainer.appendChild(p);
   });
 
-  // Informations supplémentaires selon les cases cochées
+  // Informations supplémentaires selon les cases cochées avec animations
+  let additionalIndex = basicInfo.length;
+
   if (document.getElementById("show-rain").checked && dayData.rr1) {
     const rainInfo = document.createElement("p");
     rainInfo.textContent = `🌧️ Cumul de pluie : ${dayData.rr1} mm`;
+    rainInfo.className = 'animated-value additional-info';
+    rainInfo.style.opacity = '0';
+    rainInfo.style.transform = 'translateX(-20px)';
+    rainInfo.style.transition = `all 0.5s ease-out ${0.6 + additionalIndex * 0.1}s`;
+    rainInfo.style.color = 'var(--primary-color)';
+    rainInfo.style.fontWeight = '600';
     infoContainer.appendChild(rainInfo);
+    additionalIndex++;
   }
 
   if (document.getElementById("show-wind").checked && dayData.wind10m) {
     const windInfo = document.createElement("p");
     windInfo.textContent = `💨 Vent moyen : ${dayData.wind10m} km/h`;
+    windInfo.className = 'animated-value additional-info';
+    windInfo.style.opacity = '0';
+    windInfo.style.transform = 'translateX(-20px)';
+    windInfo.style.transition = `all 0.5s ease-out ${0.6 + additionalIndex * 0.1}s`;
+    windInfo.style.color = 'var(--primary-color)';
+    windInfo.style.fontWeight = '600';
     infoContainer.appendChild(windInfo);
+    additionalIndex++;
   }
 
   if (document.getElementById("show-wind-dir").checked && dayData.dirwind10m !== undefined) {
     const windDirInfo = document.createElement("p");
     windDirInfo.textContent = `🧭 Direction du vent : ${dayData.dirwind10m}° (${getWindDirection(dayData.dirwind10m)})`;
+    windDirInfo.className = 'animated-value additional-info';
+    windDirInfo.style.opacity = '0';
+    windDirInfo.style.transform = 'translateX(-20px)';
+    windDirInfo.style.transition = `all 0.5s ease-out ${0.6 + additionalIndex * 0.1}s`;
+    windDirInfo.style.color = 'var(--primary-color)';
+    windDirInfo.style.fontWeight = '600';
     infoContainer.appendChild(windDirInfo);
   }
 
   card.appendChild(infoContainer);
+
+  // Déclencher les animations après l'ajout au DOM
+  setTimeout(() => {
+    triggerCardAnimations(card);
+  }, 100);
+
   return card;
 }
+
+// Déclencher les animations de la carte
+function triggerCardAnimations(card) {
+  const title = card.querySelector('h3');
+  const date = card.querySelector('div');
+  const infoContainer = card.querySelector('.weather-info');
+  const animatedValues = card.querySelectorAll('.animated-value');
+
+  // Animer le titre
+  if (title) {
+    title.style.opacity = '1';
+    title.style.transform = 'translateY(0)';
+  }
+
+  // Animer la date
+  if (date) {
+    setTimeout(() => {
+      date.style.opacity = '0.8';
+      date.style.transform = 'translateY(0)';
+    }, 200);
+  }
+
+  // Animer le conteneur d'infos
+  if (infoContainer) {
+    setTimeout(() => {
+      infoContainer.style.opacity = '1';
+      infoContainer.style.transform = 'translateY(0)';
+    }, 400);
+  }
+
+  // Animer chaque valeur individuellement
+  animatedValues.forEach((value, index) => {
+    setTimeout(() => {
+      value.style.opacity = '1';
+      value.style.transform = 'translateX(0)';
+      
+      // Effet de surbrillance pour les infos supplémentaires
+      if (value.classList.contains('additional-info')) {
+        setTimeout(() => {
+          value.style.background = 'rgba(34, 197, 94, 0.1)';
+          value.style.padding = '0.3rem 0.5rem';
+          value.style.borderRadius = '8px';
+          value.style.border = '1px solid rgba(34, 197, 94, 0.3)';
+        }, 200);
+      }
+    }, 600 + index * 100);
+  });
+}
+
+// Animation pour mettre à jour les valeurs météo
+function animateValueUpdate(element, newValue) {
+  if (!element) return;
+  
+  element.classList.add('updating');
+  element.style.transform = 'scale(1.1)';
+  element.style.color = 'var(--primary-color)';
+  
+  setTimeout(() => {
+    element.textContent = newValue;
+    element.style.transform = 'scale(1)';
+    element.style.color = '';
+    element.classList.remove('updating');
+  }, 400);
+}
+
+// Animation d'apparition en cascade pour toutes les cartes
+function animateWeatherCards() {
+  const cards = document.querySelectorAll('.weather-card');
+  
+  cards.forEach((card, index) => {
+    card.style.opacity = '0';
+    card.style.transform = 'translateY(50px) scale(0.9)';
+    
+    setTimeout(() => {
+      card.style.transition = 'all 0.8s cubic-bezier(0.4, 0, 0.2, 1)';
+      card.style.opacity = '1';
+      card.style.transform = 'translateY(0) scale(1)';
+      
+      // Effet de rebond
+      setTimeout(() => {
+        card.style.transform = 'translateY(-5px) scale(1.02)';
+        setTimeout(() => {
+          card.style.transform = 'translateY(0) scale(1)';
+        }, 150);
+      }, 400);
+      
+    }, index * 150);
+  });
+}
+
 
 
 // Fonctions utilitaires
