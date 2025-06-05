@@ -37,7 +37,6 @@ body {
   background-position: center;
   color: var(--text-light);
   font-family: sans-serif;
-  text-shadow: 1px 1px 4px black;
   transition: background-image 1s ease-in-out;
   font-size: 2em;
   background-image: url('images/defaut.jpg');
@@ -530,10 +529,7 @@ legend {
   border: 2px solid rgba(52, 211, 153, 0.3);
 }
 
-.weather-card:hover {
-  transform: translateY(-5px);
-  animation: pulseGlow 2s infinite;
-}
+
 
 /* Animation pour les valeurs numériques */
 .animated-value {
