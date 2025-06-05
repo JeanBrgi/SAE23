@@ -1,5 +1,6 @@
 // Configuration et éléments DOM
 const API_TOKEN = "30d71a74ad1c665d279168dca98378581270be4587da3ab13c51ffde8de4cbae";
+const MAPBOX_TOKEN = "";
 const postalInput = document.getElementById("postal-input");
 const cityDropdown = document.getElementById("cityDropdown");
 const submitBtn = document.getElementById("submitBtn");
@@ -10,6 +11,7 @@ const darkModeToggle = document.getElementById("darkModeToggle");
 let selectedDays = 1;
 let selectedCity = null;
 let currentCityData = null;
+let weatherMap = null;
 
 // Initialisation
 document.addEventListener("DOMContentLoaded", () => {
@@ -178,7 +180,7 @@ function renderWeatherResults(weatherData, cityData) {
 
   // Affichage des coordonnées si demandé
   if (document.getElementById("show-coords").checked) {
-    renderCoordinatesCard(cityData, section);
+    renderCoordinatesCard(cityData, weatherData, section);
   }
 
   // Conteneur pour les cartes météo
@@ -196,7 +198,10 @@ function renderWeatherResults(weatherData, cityData) {
   const retryBtn = document.createElement("button");
   retryBtn.textContent = "Nouvelle recherche";
   retryBtn.className = "reloadButton";
-  retryBtn.onclick = () => location.reload();
+  retryBtn.onclick = () => {
+    cleanupMap();
+    location.reload();
+  };
   section.appendChild(retryBtn);
 
   // Affichage de la section et masquage du formulaire
@@ -204,29 +209,165 @@ function renderWeatherResults(weatherData, cityData) {
   document.getElementById("locationForm").style.display = "none";
 }
 
-// Affichage de la carte des coordonnées
-function renderCoordinatesCard(cityData, container) {
+// Affichage de la carte des coordonnées avec Mapbox
+function renderCoordinatesCard(cityData, weatherData, container) {
   const coordCard = document.createElement("div");
   coordCard.className = "coordinates-card";
   
   coordCard.innerHTML = `
-    <h3>📍 Localisation de ${cityData.name}</h3>
+    <h3>📍 ${cityData.name}</h3>
     <div class="coord-display">
       <div class="coord-item">
         <div class="coord-label">Latitude</div>
-        <div class="coord-value">${cityData.lat.toFixed(6)}°</div>
+        <div class="coord-value">${cityData.lat.toFixed(4)}°</div>
       </div>
       <div class="coord-item">
         <div class="coord-label">Longitude</div>
-        <div class="coord-value">${cityData.lon.toFixed(6)}°</div>
+        <div class="coord-value">${cityData.lon.toFixed(4)}°</div>
       </div>
     </div>
-    <p style="margin-top: 1rem; font-size: 0.9rem; opacity: 0.9;">
-      Coordonnées géographiques en degrés décimaux
-    </p>
+    <div id="weather-map" class="weather-map"></div>
+    <div class="map-info">
+      📍 Cliquez et naviguez dans la carte • 🌡️ Marqueur avec données météo
+    </div>
   `;
   
   container.appendChild(coordCard);
+  
+  // Initialiser la carte après que l'élément soit dans le DOM
+  setTimeout(() => {
+    initializeWeatherMap(cityData, weatherData);
+  }, 100);
+}
+
+// Initialisation de la carte Mapbox
+function initializeWeatherMap(cityData, weatherData) {
+  // Vérifier si Mapbox est disponible
+  if (typeof mapboxgl === 'undefined') {
+    console.error("Mapbox GL JS n'est pas chargé");
+    return;
+  }
+
+  // Définir le token (vérifier qu'il n'est pas vide)
+  if (MAPBOX_TOKEN === "YOUR_MAPBOX_TOKEN_HERE") {
+    console.warn("⚠️ Token Mapbox non configuré. Utilisez un style de base.");
+    // Utiliser OpenStreetMap comme fallback
+    initializeFallbackMap(cityData, weatherData);
+    return;
+  }
+
+  mapboxgl.accessToken = MAPBOX_TOKEN;
+
+  // Créer la carte
+  weatherMap = new mapboxgl.Map({
+    container: 'weather-map',
+    style: 'mapbox://styles/mapbox/streets-v12',
+    center: [cityData.lon, cityData.lat],
+    zoom: 11,
+    projection: 'mercator'
+  });
+
+  // Ajouter les contrôles de navigation
+  weatherMap.addControl(new mapboxgl.NavigationControl(), 'top-right');
+
+  // Ajouter un marqueur avec popup météo
+  weatherMap.on('load', () => {
+    addWeatherMarker(cityData, weatherData[0]); // Premier jour de prévisions
+    
+    // Essayer d'ajouter une couche de précipitations si possible
+    addWeatherLayers();
+  });
+}
+
+// Fallback avec OpenStreetMap si pas de token Mapbox
+function initializeFallbackMap(cityData, weatherData) {
+  const mapElement = document.getElementById('weather-map');
+  mapElement.innerHTML = `
+    <div style="
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      background: linear-gradient(135deg, rgba(52, 211, 153, 0.1), rgba(34, 197, 94, 0.2));
+      border: 2px dashed rgba(255, 255, 255, 0.3);
+      border-radius: 10px;
+      text-align: center;
+      padding: 2rem;
+    ">
+      <div style="font-size: 3rem; margin-bottom: 1rem;">🗺️</div>
+      <div style="font-size: 1.1rem; font-weight: bold; margin-bottom: 0.5rem;">
+        Carte météo interactive
+      </div>
+      <div style="font-size: 0.9rem; opacity: 0.8; margin-bottom: 1rem;">
+        ${cityData.name}
+      </div>
+      <div style="font-size: 0.8rem; opacity: 0.7;">
+        🌡️ ${weatherData[0].tmax}°C • ☔ ${weatherData[0].probarain}%
+      </div>
+      <div style="font-size: 0.7rem; opacity: 0.6; margin-top: 1rem;">
+        Configurez votre token Mapbox pour voir la carte interactive
+      </div>
+    </div>
+  `;
+}
+
+// Ajouter un marqueur météo sur la carte
+function addWeatherMarker(cityData, dayWeather) {
+  if (!weatherMap) return;
+
+  // Créer le contenu du popup
+  const popupContent = `
+    <div style="padding: 0.5rem; text-align: center;">
+      <h4 style="margin: 0 0 0.5rem 0; color: #059669;">${cityData.name}</h4>
+      <div style="font-size: 0.9rem; margin-bottom: 0.3rem;">
+        🌡️ ${dayWeather.tmin}°C - ${dayWeather.tmax}°C
+      </div>
+      <div style="font-size: 0.9rem; margin-bottom: 0.3rem;">
+        ☔ ${dayWeather.probarain}% de pluie
+      </div>
+      <div style="font-size: 0.9rem;">
+        🌤️ ${getWeatherDescription(dayWeather.weather)}
+      </div>
+    </div>
+  `;
+
+  // Créer le popup
+  const popup = new mapboxgl.Popup({ 
+    offset: 25,
+    closeButton: true,
+    closeOnClick: false
+  }).setHTML(popupContent);
+
+  // Créer le marqueur
+  const marker = new mapboxgl.Marker({
+    color: '#22c55e',
+    scale: 1.2
+  })
+  .setLngLat([cityData.lon, cityData.lat])
+  .setPopup(popup)
+  .addTo(weatherMap);
+
+  // Ouvrir le popup automatiquement
+  setTimeout(() => {
+    popup.addTo(weatherMap);
+  }, 500);
+}
+
+// Ajouter des couches météo (expérimental)
+function addWeatherLayers() {
+  if (!weatherMap) return;
+
+  try {
+    // Ajouter une couche de précipitations de Mapbox (si disponible)
+    weatherMap.on('load', () => {
+      // Cette couche nécessite un style spécial de Mapbox
+      // Pour l'instant, on se contente du marqueur
+      console.log("Carte météo chargée avec succès");
+    });
+  } catch (error) {
+    console.log("Couches météo avancées non disponibles:", error);
+  }
 }
 
 // Création d'une carte météo pour un jour
@@ -414,4 +555,12 @@ function showLoadingIndicator() {
 function hideLoadingIndicator() {
   submitBtn.textContent = "Obtenir les prévisions";
   submitBtn.disabled = false;
+}
+
+// Nettoyer la carte lors d'une nouvelle recherche
+function cleanupMap() {
+  if (weatherMap) {
+    weatherMap.remove();
+    weatherMap = null;
+  }
 }
