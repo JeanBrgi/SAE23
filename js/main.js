@@ -1,6 +1,6 @@
 // Configuration et éléments DOM
 const API_TOKEN = "30d71a74ad1c665d279168dca98378581270be4587da3ab13c51ffde8de4cbae";
-const MAPBOX_TOKEN = "YOUR_MAPBOX_TOKEN_HERE"; // Remplacez par votre token Mapbox
+const MAPBOX_TOKEN = "pk.eyJ1IjoiamVhbmJyZ2kiLCJhIjoiY21iajY4ZXl1MGNseDJrcW5hZXp2M25lZyJ9.dpIjsW_tSsd9Spy7OzOeFg";
 const postalInput = document.getElementById("postal-input");
 const cityDropdown = document.getElementById("cityDropdown");
 const submitBtn = document.getElementById("submitBtn");
