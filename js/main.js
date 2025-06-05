@@ -450,6 +450,72 @@ function addTemperatureLayer() {
   }
 }
 
+// Ajouter la couche de pression
+function addPressureLayer() {
+  if (!weatherMap) return;
+  
+  const pressureUrl = `https://tile.openweathermap.org/map/pressure_new/{z}/{x}/{y}.png?appid=${OPENWEATHER_API_KEY}`;
+  
+  try {
+    weatherMap.addSource('pressure-layer-source', {
+      type: 'raster',
+      tiles: [pressureUrl],
+      tileSize: 256,
+      attribution: '© OpenWeatherMap'
+    });
+    
+    weatherMap.addLayer({
+      id: 'pressure-layer',
+      type: 'raster',
+      source: 'pressure-layer-source',
+      paint: {
+        'raster-opacity': 0.5
+      }
+    });
+    
+    // Animation d'apparition
+    animateLayerOpacity('pressure-layer', 0, 0.5);
+    showLayerMessage('🌪️ Couche pression atmosphérique activée');
+    
+  } catch (error) {
+    console.error('Erreur couche pression:', error);
+    showLayerMessage('🌪️ Erreur lors du chargement de la pression');
+  }
+}
+
+// Ajouter la couche de vent
+function addWindLayer() {
+  if (!weatherMap) return;
+  
+  const windUrl = `https://tile.openweathermap.org/map/wind_new/{z}/{x}/{y}.png?appid=${OPENWEATHER_API_KEY}`;
+  
+  try {
+    weatherMap.addSource('wind-layer-source', {
+      type: 'raster',
+      tiles: [windUrl],
+      tileSize: 256,
+      attribution: '© OpenWeatherMap'
+    });
+    
+    weatherMap.addLayer({
+      id: 'wind-layer',
+      type: 'raster',
+      source: 'wind-layer-source',
+      paint: {
+        'raster-opacity': 0.6
+      }
+    });
+    
+    // Animation d'apparition
+    animateLayerOpacity('wind-layer', 0, 0.6);
+    showLayerMessage('💨 Couche vent activée - Flèches = direction et intensité');
+    
+  } catch (error) {
+    console.error('Erreur couche vent:', error);
+    showLayerMessage('💨 Erreur lors du chargement du vent');
+  }
+}
+
 // Animer l'opacité d'une couche
 function animateLayerOpacity(layerId, fromOpacity, toOpacity, duration = 1000) {
   if (!weatherMap || !weatherMap.getLayer(layerId)) return;
@@ -922,83 +988,6 @@ function triggerCardAnimations(card) {
   });
 }
 
-// Ajouter la couche de pression
-function addPressureLayer() {
-  if (!weatherMap) return;
-  
-  const pressureUrl = `https://tile.openweathermap.org/map/pressure_new/{z}/{x}/{y}.png?appid=${OPENWEATHER_API_KEY}`;
-  
-  try {
-    weatherMap.addSource('pressure-layer-source', {
-      type: 'raster',
-      tiles: [pressureUrl],
-      tileSize: 256,
-      attribution: '© OpenWeatherMap'
-    });
-    
-    weatherMap.addLayer({
-      id: 'pressure-layer',
-      type: 'raster',
-      source: 'pressure-layer-source',
-      paint: {
-        'raster-opacity': 0.5
-      }
-    });
-    
-    // Animation d'apparition
-    animateLayerOpacity('pressure-layer', 0, 0.5);
-    showLayerMessage('🌪️ Couche pression atmosphérique activée');
-    
-  } catch (error) {
-    console.error('Erreur couche pression:', error);
-    showLayerMessage('🌪️ Erreur lors du chargement de la pression');
-  }
-}
-
-// Ajouter la couche de vent
-function addWindLayer() {
-  if (!weatherMap) return;
-  
-  const windUrl = `https://tile.openweathermap.org/map/wind_new/{z}/{x}/{y}.png?appid=${OPENWEATHER_API_KEY}`;
-  
-  try {
-    weatherMap.addSource('wind-layer-source', {
-      type: 'raster',
-      tiles: [windUrl],
-      tileSize: 256,
-      attribution: '© OpenWeatherMap'
-    });
-    
-    weatherMap.addLayer({
-      id: 'wind-layer',
-      type: 'raster',
-      source: 'wind-layer-source',
-      paint: {
-        'raster-opacity': 0.6
-      }
-    });
-    
-    // Animation d'apparition
-    animateLayerOpacity('wind-layer', 0, 0.6);
-    showLayerMessages('💨 Couche vent activée - Flèches = direction et intensité');
-    
-  } catch (error) {
-    console.error('Erreur couche vent:', error);
-    showLayerMessage('💨 Erreur lors du chargement du vent');
-  }
-}
-  if (!element) return;
-  
-  element.classList.add('updating');
-  element.style.transform = 'scale(1.1)';
-  element.style.color = 'var(--primary-color)';
-  
-  setTimeout(() => {
-    element.textContent = newValue;
-    element.style.transform = 'scale(1)';
-    element.style.color = '';
-    element.classList.remove('updating');
-  }, 400);
 
 
 // Animation d'apparition en cascade pour toutes les cartes
