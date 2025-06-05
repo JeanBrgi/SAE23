@@ -247,6 +247,7 @@ function createWeatherCard(dayData, dayIndex) {
     margin-bottom: 1rem;
     font-weight: 500;
     opacity: 0.8;
+    text-shadow: none;
   `;
   dateDisplay.textContent = getExactDate(dayIndex);
   card.appendChild(dateDisplay);
@@ -255,13 +256,13 @@ function createWeatherCard(dayData, dayIndex) {
   const infoContainer = document.createElement("div");
   infoContainer.className = "weather-info";
   
-  // Informations de base
+  // Informations de base dans le nouvel ordre
   const basicInfo = [
-    `🌡️ Température min : ${dayData.tmin}°C`,
+    `🌤️ Conditions : ${getWeatherDescription(dayData.weather)}`,
     `🌡️ Température max : ${dayData.tmax}°C`,
+    `🌡️ Température min : ${dayData.tmin}°C`,
     `☔ Risque de pluie : ${dayData.probarain}%`,
-    `☀️ Ensoleillement : ${formatHours(dayData.sun_hours)}`,
-    `🌤️ Conditions : ${getWeatherDescription(dayData.weather)}`
+    `☀️ Ensoleillement : ${formatHours(dayData.sun_hours)}`
   ];
 
   basicInfo.forEach(info => {
